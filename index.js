@@ -367,7 +367,6 @@ module.exports = (robot, { getRouter }, Settings = require('./lib/settings')) =>
     'team.removed_from_repository',
     'team.edited'
   ]
-
   robot.on(member_change_events, async context => {
     const { payload } = context
     const { sender } = payload
@@ -455,15 +454,15 @@ module.exports = (robot, { getRouter }, Settings = require('./lib/settings')) =>
           } else {
             robot.log.error(error)
           }
-        } 
+        }
 
       } catch (error) {
         if (error.status === 404) {
           //nop
-        } else {  
+        } else {
           robot.log.error(error)
         }
-      } 
+      }
       return
     } else {
       robot.log.debug('Repository Edited by a Human')
@@ -663,7 +662,7 @@ module.exports = (robot, { getRouter }, Settings = require('./lib/settings')) =>
       syncInstallation()
     })
   }
-  
+
   // Get info about the app
   info()
 
