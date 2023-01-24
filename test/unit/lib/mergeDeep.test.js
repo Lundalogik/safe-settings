@@ -1626,3 +1626,15 @@ branches:
     expect(same.modifications).toEqual({})
   })
 })
+
+it('CompareDeep result has changes when source is empty and target is not', () => {
+  const ignorableFields = []
+  const mergeDeep = new MergeDeep(log, ignorableFields)
+  const target = [
+      { username: 'unwanted-collaborator' }
+    ]
+  const source = []
+  const result = mergeDeep.compareDeep(target, source)
+
+  expect(result.hasChanges).toBeTruthy()
+})
