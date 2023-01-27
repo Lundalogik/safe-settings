@@ -476,5 +476,9 @@ module.exports = (robot, _, Settings = require('./lib/settings')) => {
       robot.log.debug('running a task every minute')
       syncInstallation()
     })
+
+    robot.onError((ev) => {
+      robot.log.error('probot.onError', JSON.stringify(ev))
+    })
   }
 }
