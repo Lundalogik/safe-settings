@@ -178,13 +178,15 @@ module.exports = (robot, _, Settings = require('./lib/settings')) => {
   async function createCheckRun (context, pull_request, head_sha, head_branch) {
     const { payload } = context
     robot.log.debug(`Check suite was requested! for ${context.repo()} ${pull_request.number} ${head_sha} ${head_branch}`)
+    const create_payload = {
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      name: 'Safe-setting validator',
+      head_sha
+    }
+    robot.log.debug(`Creating check run with payload ${JSON.stringify(create_payload)}`)
     try {
-      const res = await context.octokit.checks.create({
-        owner: payload.repository.owner.login,
-        repo: payload.repository.name,
-        name: 'Safe-setting validator',
-        head_sha
-      })
+      const res = await context.octokit.checks.create(create_payload)
       robot.log.debug('Check run created')
       robot.log.debug(JSON.stringify(res, null))
     } catch (error) {
