@@ -488,5 +488,9 @@ module.exports = (robot, _, Settings = require('./lib/settings')) => {
     robot.onError((ev) => {
       robot.log.error('probot.onError', JSON.stringify(ev))
     })
+    
+    return {
+      syncInstallation
+    }
   }
 }
