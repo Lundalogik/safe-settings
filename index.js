@@ -458,5 +458,9 @@ module.exports = (robot, _, Settings = require('./lib/settings')) => {
       robot.log.debug('running a task every minute')
       syncInstallation()
     })
+
+    return {
+      syncInstallation
+    }
   }
 }
