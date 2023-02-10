@@ -4,13 +4,13 @@
 
 `Safe-settings`– an app to manage policy-as-code and apply repository settings to repositories across an organization.
 
-1. In `safe-settings` all the settings are stored centrally in an `admin` repo within the organization. This is important. Unlike [Settings Probot](https://github.com/probot/settings), the settings files cannot be in individual repositories.  
-<br> :wave:`NOTE:` It is possible to overrride this behavior and specify a custom repo instead of the `admin` repo.  
+1. In `safe-settings` all the settings are stored centrally in an `admin` repo within the organization. This is important. Unlike [Settings Probot](https://github.com/probot/settings), the settings files cannot be in individual repositories.
+<br> :wave:`NOTE:` It is possible to overrride this behavior and specify a custom repo instead of the `admin` repo.
 This could be done by setting an `env` variable called `ADMIN_REPO`.
 
 1. There are 3 levels at which the settings could be managed:
-   1. Org-level settings are defined in `.github/settings.yml`  
-   <br> :wave:`NOTE:` It is possible to overrride this behavior and specify a different filename for the `settings` yml repo.   
+   1. Org-level settings are defined in `.github/settings.yml`
+   <br> :wave:`NOTE:` It is possible to overrride this behavior and specify a different filename for the `settings` yml repo.
 This could be done by setting an `env` variable called `SETTINGS_FILE_PATH`.
 
    1. `Suborg` level settings. A `suborg` is an arbitrary collection of repos belonging to projects, business units, or teams. The `suborg` settings reside in a yaml file for each `suborg` in the `.github/suborgs` folder.
@@ -27,18 +27,18 @@ This could be done by setting an `env` variable called `SETTINGS_FILE_PATH`.
 The App listens to the following webhook events:
 
 - **push**: If the settings are created or modified, that is, if  push happens in the `default` branch of the `admin` repo and the file added or changed is `.github/settings.yml` or `.github/repos/*.yml`or `.github/suborgs/*.yml`, then the settings would be applied either globally to all the repos, or specific repos. For each repo, the settings that is actually applied depend on the default settings for the org, overlayed with settings for the suborg that the repo belongs to, overlayed with the settings for that specific repo.
-  
-- **repository.created**: If a repository is created in the org, the settings for the repo - the default settings for the org, overlayed with settings for the suborg that the repo belongs to, overlayed with the settings for that specific repo - is applied. 
+
+- **repository.created**: If a repository is created in the org, the settings for the repo - the default settings for the org, overlayed with settings for the suborg that the repo belongs to, overlayed with the settings for that specific repo - is applied.
 
 - **branch_protection_rule**: If a branch protection rule is modified or deleted, `safe-settings` will `sync` the settings to prevent any unauthorized changes.
 
 - **repository.edited**: If the `default` branch is changed if the the settings that would be applied for the repo
 
-- **pull_request.opened**, **pull_request.reopened**, **check_suite.requested**: If the settings are changed, but it is not in the `default` branch, and there is an existing PR, the code will validate the settings changes by running safe-settings in `nop` mode and update the PR with the `dry-run` status. 
+- **pull_request.opened**, **pull_request.reopened**, **check_suite.requested**: If the settings are changed, but it is not in the `default` branch, and there is an existing PR, the code will validate the settings changes by running safe-settings in `nop` mode and update the PR with the `dry-run` status.
 
 ### Restricting `safe-settings` to specific repos
-`safe-settings` can be turned on only to a subset of repos by specifying them in the runtime settings file, `deployment-settings.yml`.  
-If no file is specified, then the following repositories -  `'admin', '.github', 'safe-settings'` are exempted by default.  
+`safe-settings` can be turned on only to a subset of repos by specifying them in the runtime settings file, `deployment-settings.yml`.
+If no file is specified, then the following repositories -  `'admin', '.github', 'safe-settings'` are exempted by default.
 A sample of `deployment-settings` file is found [here](docs/sample-settings/sample-deployment-settings.yml).
 
 To apply `safe-settings` __only__ to a specific list of repos, add them to the `restrictedRepos` section as `include` array.
@@ -51,13 +51,13 @@ To ignore `safe-settings` for a specific list of repos, add them to the `restric
 
 Admins setting up `safe-settings` can include custom rules that would be used to validate before applying a setting or overridding a broader scoped setting.
 
-The code has to return `true` if validation is successful, or `false` if it isn't.  
+The code has to return `true` if validation is successful, or `false` if it isn't.
 
 If the validation fails, the `error` attribute specified would be used to create the error message in the logs or in the `PR checks`.
 
-The first use case is where a custom rule has to be applied for a setting on its own. For e.g. No collaborator should be given `admin` permissions. 
+The first use case is where a custom rule has to be applied for a setting on its own. For e.g. No collaborator should be given `admin` permissions.
 
-For this type of validations, admins can provide custom code as `configvalidators` which validates the setting by itself. 
+For this type of validations, admins can provide custom code as `configvalidators` which validates the setting by itself.
 
 For e.g. for the case above, it would look like:
 ```yaml
@@ -74,20 +74,20 @@ For convenience this script has access to a variable, `baseconfig`, that contain
 
 The second use case is where custom rule has to be applied when a setting in the org or suborg level is being overridden. Such as, when default branch protection is being overridden.
 
-For this type of validations, admins can provide custom code as `overridevalidators`. The script can access two variables, `baseconfig` and `overrideconfig` which represent the base setting and the setting that is overridding it.  
+For this type of validations, admins can provide custom code as `overridevalidators`. The script can access two variables, `baseconfig` and `overrideconfig` which represent the base setting and the setting that is overridding it.
 
 A sample would look like:
 
 ```yaml
 overridevalidators:
-  - plugin: branches   
+  - plugin: branches
     error: |
       `Branch protection required_approving_review_count cannot be overidden to a lower value`
     script: |
       console.log(`baseConfig ${JSON.stringify(baseconfig)}`)
       console.log(`overrideConfig ${JSON.stringify(overrideconfig)}`)
       if (baseconfig.protection.required_pull_request_reviews.required_approving_review_count && overrideconfig.protection.required_pull_request_reviews.required_approving_review_count ) {
-        return overrideconfig.protection.required_pull_request_reviews.required_approving_review_count >= baseconfig.protection.required_pull_request_reviews.required_approving_review_count 
+        return overrideconfig.protection.required_pull_request_reviews.required_approving_review_count >= baseconfig.protection.required_pull_request_reviews.required_approving_review_count
       }
       return true
 ```
@@ -210,20 +210,20 @@ The App can be configured to apply the settings on a schedule. This could a way 
  To set periodically converge the settings to the configuration, set the `CRON` environment variable. This is based on [node-cron](https://www.npmjs.com/package/node-cron) and details on the possible values can be found [here](#Env variables).
 
 ### Pull Request Workflow
-`Safe-settings` explicitly looks in the `admin` repo in the organization for the settings files. The `admin` repo could be a restricted repository with `branch protections` and `codeowners`  
+`Safe-settings` explicitly looks in the `admin` repo in the organization for the settings files. The `admin` repo could be a restricted repository with `branch protections` and `codeowners`
 
-In that set up, when a changes happen to the settings files and there is a PR for merging the changes back to the `default` branch in the `admin` repo, `safe-settings` will run `checks`  – which will run in **nop** mode and produce a report of the changes that would happen, including the API calls and the payload. 
+In that set up, when a changes happen to the settings files and there is a PR for merging the changes back to the `default` branch in the `admin` repo, `safe-settings` will run `checks`  – which will run in **nop** mode and produce a report of the changes that would happen, including the API calls and the payload.
 
 The checks will fail if `org-level`branch protections are overridden at the repo or suborg level with a lesser number of required approvers.
 
 ### The Settings file
 
-The settings file can be used to set the policies at the `Org`, `suborg` or `repo` level. 
+The settings file can be used to set the policies at the `Org`, `suborg` or `repo` level.
 
 Using the settings, the following things could be configured:
 
 - `Repository settings` - home page, url, visibility, has_issues, has_projects, wikis, etc.
-- `default branch`naming and renaming 
+- `default branch`naming and renaming
 - `Repository Topics`
 - `Teams and permissions`
 - `Collaborators and permissions`
@@ -240,20 +240,20 @@ Here is an example settings file:
 ```yaml
 # These settings are synced to GitHub by https://github.com/github/safe-settings
 
-repository: 
-  # This is the settings that need to be applied to all repositories in the org 
-  # See https://docs.github.com/en/rest/reference/repos#create-an-organization-repository for all available settings for a repository  
+repository:
+  # This is the settings that need to be applied to all repositories in the org
+  # See https://docs.github.com/en/rest/reference/repos#create-an-organization-repository for all available settings for a repository
   # A short description of the repository that will show up on GitHub
   description: description of the repo
-  
+
   # A URL with more information about the repository
   homepage: https://example.github.io/
-    
+
   # Keep this as true for most cases
   # A lot of the policies below cannot be implemented on bare repos
   # Pass true to create an initial commit with empty README.
   auto_init: true
-    
+
   # A list of topics to set on the repository - can alternatively set like this: [github, probot, new-topic, another-topic, topic-12]
   topics:
   - github
@@ -261,85 +261,89 @@ repository:
   - new-topic
   - another-topic
   - topic-12
-  
-  # Either `true` to make the repository private, or `false` to make it public. 
+
+  # Either `true` to make the repository private, or `false` to make it public.
   # If this value is changed and if Org members cannot change the visibility of repos
   # it would result in an error when updating a repo
   private: true
-  
-  # Can be public or private. If your organization is associated with an enterprise account using 
-  # GitHub Enterprise Cloud or GitHub Enterprise Server 2.20+, visibility can also be internal. 
+
+  # Can be public or private. If your organization is associated with an enterprise account using
+  # GitHub Enterprise Cloud or GitHub Enterprise Server 2.20+, visibility can also be internal.
   visibility: private
-  
+
   # Either `true` to enable issues for this repository, `false` to disable them.
   has_issues: true
-  
+
   # Either `true` to enable projects for this repository, or `false` to disable them.
   # If projects are disabled for the organization, passing `true` will cause an API error.
   has_projects: true
-  
+
   # Either `true` to enable the wiki for this repository, `false` to disable it.
   has_wiki: true
-  
+
   # The default branch for this repository.
   default_branch: main-enterprise
-  
-  # Desired language or platform [.gitignore template](https://github.com/github/gitignore) 
-  # to apply. Use the name of the template without the extension. 
+
+  # Desired language or platform [.gitignore template](https://github.com/github/gitignore)
+  # to apply. Use the name of the template without the extension.
   # For example, "Haskell".
   gitignore_template: node
-  
-  # Choose an [open source license template](https://choosealicense.com/) 
-  # that best suits your needs, and then use the 
-  # [license keyword](https://help.github.com/articles/licensing-a-repository/#searching-github-by-license-type) 
+
+  # Choose an [open source license template](https://choosealicense.com/)
+  # that best suits your needs, and then use the
+  # [license keyword](https://help.github.com/articles/licensing-a-repository/#searching-github-by-license-type)
   # as the `license_template` string. For example, "mit" or "mpl-2.0".
   license_template: mit
-  
+
   # Either `true` to allow squash-merging pull requests, or `false` to prevent
   # squash-merging.
   allow_squash_merge: true
-  
+
   # Either `true` to allow merging pull requests with a merge commit, or `false`
   # to prevent merging pull requests with merge commits.
   allow_merge_commit: true
-  
+
   # Either `true` to allow rebase-merging pull requests, or `false` to prevent
   # rebase-merging.
   allow_rebase_merge: true
-  
-  # Either `true` to allow auto-merge on pull requests, 
+
+  # Either `true` to allow auto-merge on pull requests,
   # or `false` to disallow auto-merge.
   # Default: `false`
   allow_auto_merge: true
-  
-  # Either `true` to allow automatically deleting head branches 
+
+  # Either `true` to allow automatically deleting head branches
   # when pull requests are merged, or `false` to prevent automatic deletion.
   # Default: `false`
-  delete_branch_on_merge: true  
-      
+  delete_branch_on_merge: true
+
 # The following attributes are applied to any repo within the org
 # So if a repo is not listed above is created or edited
 # The app will apply the following settings to it
 labels:
   # Labels: define labels for Issues and Pull Requests
-  - name: bug
-    color: CC0000
-    description: An issue with the system
+  include:
+    - name: bug
+      color: CC0000
+      description: An issue with the system
 
-  - name: feature
-    # If including a `#`, make sure to wrap it with quotes!
-    color: '#336699'
-    description: New functionality.
+    - name: feature
+      # If including a `#`, make sure to wrap it with quotes!
+      color: '#336699'
+      description: New functionality.
 
-  - name: first-timers-only
-    # include the old name to rename an existing label
-    oldname: Help Wanted
-    color: '#326699'
+    - name: first-timers-only
+      # include the old name to rename an existing label
+      oldname: Help Wanted
+      color: '#326699'
 
-  - name: new-label
-    # include the old name to rename an existing label
-    oldname: Help Wanted
-    color: '#326699'
+    - name: new-label
+      # include the old name to rename an existing label
+      oldname: Help Wanted
+      color: '#326699'
+  exclude:
+    # don't delete any labels created on GitHub that starts with "release"
+    - name: ^release
 
 milestones:
 # Milestones: define milestones for Issues and Pull Requests
@@ -425,9 +429,9 @@ autolinks:
     url_template: 'https://jira.github.com/browse/JIRA-<num>'
   - key_prefix: 'MYLINK-'
     url_template: 'https://mywebsite.com/<num>'
-        
+
 validator:
-  #pattern: '[a-zA-Z0-9_-]+_[a-zA-Z0-9_-]+.*' 
+  #pattern: '[a-zA-Z0-9_-]+_[a-zA-Z0-9_-]+.*'
   pattern: '[a-zA-Z0-9_-]+'
 ```
 
@@ -437,10 +441,10 @@ validator:
 
 In addition to these values above, the settings file can have some addtional values
 
-1.  `force_create`: This is set in the repo-level settings to force create the repo if the repo does not exist. 
+1.  `force_create`: This is set in the repo-level settings to force create the repo if the repo does not exist.
 2. `template`: This is set in the repo-level settings, and is used with the `force_create`flag to use a specific repo template when creating the repo
 3. `suborgrepos`: This is set in the suborg-level settings to define an array of repos. This field can also take a `glob` pattern to allow wild-card expression to specify repos in a suborg. For e.g. `test*`would include `test`, `test1`, `testing`, etc.
-4. The `suborgteams` section contains a list of teams, and all the repos belonging to the teams would be part of the `suborg` 
+4. The `suborgteams` section contains a list of teams, and all the repos belonging to the teams would be part of the `suborg`
 
 
 
@@ -466,7 +470,7 @@ CRON=* * * * * # Run every minute
 LOG_LEVEL=trace
 ```
 
-### Runtime Settings 
+### Runtime Settings
 
 1. Besides the above settings files, the application can be bootstrapped with `runtime` settings.
 2. The `runtime` settings are configured in `deployment-settings.yml` that is in the directory from where the GitHub app is running.
@@ -483,13 +487,13 @@ LOG_LEVEL=trace
 
 ## How to use
 
-1. __[Install the app](docs/deploy.md)__. 
+1. __[Install the app](docs/deploy.md)__.
 
-2. Create an `admin` repo within your organization (the repository must be called `admin`). 
+2. Create an `admin` repo within your organization (the repository must be called `admin`).
 
 3. Add the settings for the `org`, `suborgs`, and `repos` . List of sample files could be found [here](docs/sample-settings).
 
-   
+
 
 ## Deployment
 
