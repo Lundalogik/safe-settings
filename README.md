@@ -1,6 +1,11 @@
-# GitHub Safe-Settings
+# 🛡️ GitHub Safe-Settings
 
 [![Create a release](https://github.com/github/safe-settings/actions/workflows/create-release.yml/badge.svg)](https://github.com/github/safe-settings/actions/workflows/create-release.yml)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+
+> **Policy-as-Code for GitHub Organizations**  
+> Centrally manage and enforce repository settings, branch protections, teams, and more across your entire GitHub organization.
 
 `Safe-settings` – an app to manage policy-as-code and apply repository settings across an organization.
 
@@ -29,10 +34,126 @@
 
 > [!NOTE]
 > The `suborg` and `repo` level settings directory structure cannot be customized.
->
-> Settings files must have a `.yml` extension only. For now, the `.yaml` extension is ignored.
+
+## 🚀 Quick Start
+
+### 1. **Deploy Safe-Settings**
+
+Choose your preferred deployment method:
+
+- **🌟 AWS Lambda (**: Use the [SafeSettings-Template](https://github.com/bheemreddy181/SafeSettings-Template) for production-ready deployment with Docker containers, GitHub Actions CI/CD, and comprehensive testing
+- **🐳 Docker**: Deploy using Docker containers locally or in your infrastructure
+- **☁️ Cloud Platforms**: Deploy to Heroku, Glitch, or Kubernetes
+
+👉 **[View all deployment options →](docs/deploy.md)**
+
+### 2. **Create Admin Repository**
+
+Create an `admin` repository in your organization to store all configuration files:
+
+```bash
+# Create admin repo in your organization
+gh repo create your-org/admin --private
+```
+
+### 3. **Configure Settings Structure**
+
+Set up your configuration files in the admin repository:
+
+```
+admin/
+├── .github/
+│   ├── settings.yml          # Organization-wide settings
+│   ├── suborgs/              # Sub-organization settings
+│   │   ├── frontend-team.yml
+│   │   └── backend-team.yml
+│   └── repos/                # Repository-specific settings
+│       ├── api-service.yml
+│       └── web-app.yml
+```
+
+### 4. **Install GitHub App**
+
+Install the Safe-Settings GitHub App in your organization with the required permissions.
+
+👉 **[Complete setup guide →](#how-to-use)**
+
+## 📊 Visual Architecture
+
+### Configuration Hierarchy
+
+```mermaid
+graph TD
+    A[Organization Settings<br/>.github/settings.yml] --> B[Sub-Organization Settings<br/>.github/suborgs/*.yml]
+    B --> C[Repository Settings<br/>.github/repos/*.yml]
+    
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    style B fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    style C fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px,color:#000
+```
+
+**Precedence Order**: Repository > Sub-Organization > Organization
+
+### Request Flow
+
+```mermaid
+sequenceDiagram
+    participant GH as GitHub
+    participant SS as Safe-Settings
+    participant AR as Admin Repo
+    participant TR as Target Repos
+    
+    Note over GH,TR: Webhook Event Processing
+    
+    GH->>+SS: Webhook Event<br/>(push, repo created, etc.)
+    SS->>SS: Validate Event Source
+    SS->>+AR: Fetch Configuration Files<br/>(.github/settings.yml, suborgs/, repos/)
+    AR-->>-SS: Return Config Files
+    
+    SS->>SS: Merge Configurations<br/>(Org → Suborg → Repo)
+    SS->>SS: Compare with Current<br/>GitHub Settings
+    
+    alt Configuration Changes Detected
+        SS->>+TR: Apply Settings<br/>(Branch Protection, Teams, etc.)
+        TR-->>-SS: Confirm Changes
+        SS->>GH: Create Check Run<br/>(Success/Failure)
+    else No Changes Needed
+        SS->>GH: Create Check Run<br/>(No Changes)
+    end
+    
+    SS-->>-GH: HTTP 200 Response
+    
+    Note over GH,TR: Pull Request Validation (Dry-Run Mode)
+    
+    GH->>+SS: PR Event<br/>(opened, synchronize)
+    SS->>+AR: Fetch PR Changes<br/>(Modified Config Files)
+    AR-->>-SS: Return Changed Configs
+    
+    SS->>SS: Validate Changes<br/>(Dry-Run Mode)
+    SS->>SS: Run Custom Validators<br/>(if configured)
+    
+    alt Validation Passes
+        SS->>GH: ✅ Check Success<br/>+ PR Comment (optional)
+    else Validation Fails
+        SS->>GH: ❌ Check Failure<br/>+ Error Details
+    end
+    
+    SS-->>-GH: HTTP 200 Response
+    
+    Note over GH,TR: Scheduled Sync (Drift Prevention)
+    
+    SS->>SS: Cron Trigger<br/>(if configured)
+    SS->>+AR: Fetch All Configurations
+    AR-->>-SS: Return All Configs
+    SS->>+TR: Sync All Repositories<br/>(Prevent Drift)
+    TR-->>-SS: Confirm Sync
+    SS->>GH: Create Check Run<br/>(Sync Results)
+```
 
 ## How it works
+
+`Safe-settings` is designed to run as a service listening for webhook events or as a scheduled job running on some regular cadence. It can also be triggered through GitHub Actions. (See the [How to use](#how-to-use) section for details on deploying and configuring.)
+
 
 ### Events
 The App listens to the following webhook events:
@@ -61,16 +182,40 @@ The App listens to the following webhook events:
 If you rename a `<repo.yml>` that corresponds to a repo, safe-settings will rename the repo to the new name. This behavior will take effect whether the env variable `BLOCK_REPO_RENAME_BY_HUMAN` is set or not.
 
 ### Restricting `safe-settings` to specific repos
-`safe-settings` can be turned on only to a subset of repos by specifying them in the runtime settings file, `deployment-settings.yml`. If no file is specified, then the following repositories -  `'admin', '.github', 'safe-settings'` are exempted by default.
-A sample of `deployment-settings` file is found [here](docs/sample-settings/sample-deployment-settings.yml).
 
-To apply `safe-settings` __only__ to a specific list of repos, add them to the `restrictedRepos` section as `include` array.
+To restrict which repositories `safe-settings` can manage, create a `deployment-settings.yml` file. This file controls the app's scope through the `restrictedRepos` configuration:
 
-To ignore `safe-settings` for a specific list of repos, add them to the `restrictedRepos` section as `exclude` array.
+```yml
+# Using include/exclude
+restrictedRepos:
+  include:
+    - api
+    - core-*    # Matches `core-api`, `core-service`, etc.
+  exclude:
+    - admin
+    - .github
+    - safe-settings
+    - test-*    # Matches `test-repo`, etc.
+
+# Or using simple array syntax for includes
+restrictedRepos: 
+  - admin
+  - .github
+  # ...
+```
 
 > [!NOTE]
-> The `include` and `exclude` attributes support as well regular expressions.
-> By default they look for regex, Example include: ['SQL'] will look apply to repos with SQL and SQL_ and SQL- etc if you want only SQL repo then use include:['^SQL$']
+> Pattern matching uses glob expressions, e.g use * for wildcards.
+
+When using `include` and `exclude`:
+
+- If `include` is specified, will **only** run on repositories that match pattern(s)
+- If `exclude` is specified, will run on all repositories **except** those matching pattern(s)
+- If both are specified, will run only on included repositories that are'nt excluded
+
+By default, if no configuration file is provided, `safe-settings` will excludes these repos: `admin`, `.github` and `safe-settings`.
+
+See our [deployment-settings.yml sample](docs/sample-settings/sample-deployment-settings.yml).
 
 ### Custom rules
 
@@ -118,6 +263,46 @@ overridevalidators:
 ```
 
 A sample of `deployment-settings` file is found [here](docs/sample-settings/sample-deployment-settings.yml).
+
+### Custom Status Checks
+For branch protection rules and rulesets, you can allow for status checks to be defined outside of safe-settings together with your usual safe settings.
+
+This can be defined at the org, sub-org, and repo level.
+
+To configure this for branch protection rules, specify `{{EXTERNALLY_DEFINED}}` under the `contexts` keyword:
+```yaml
+branches:
+  - name: main
+    protection:
+      ...
+      required_status_checks:
+        contexts:
+          - "{{EXTERNALLY_DEFINED}}"
+```
+
+For rulesets, specify `{{EXTERNALLY_DEFINED}}` under the `required_status_checks` keyword:
+```yaml
+rulesets:
+  - name: Status Checks
+    ...
+    rules:
+      - type: required_status_checks
+        parameters:
+          required_status_checks:
+            - context: "{{EXTERNALLY_DEFINED}}"
+```
+
+Notes:
+  - For the same branch that is covered by multi-level branch protection rules, contexts defined at the org level are merged into the sub-org and repo level contexts, while contexts defined at the sub-org level are merged into the repo level contexts.
+  - Rules from the sub-org level are merged into the repo level when their ruleset share the same name. Becareful not to define the same rule type in both levels as it will be rejected by GitHub.
+  - When `{{EXTERNALLY_DEFINED}}` is defined for a new branch protection rule or ruleset configuration, they will be deployed with no status checks.
+  - When an existing branch protection rule or ruleset configuration is amended with `{{EXTERNALLY_DEFINED}}`, the status checks in the existing rules in GitHub will remain as is.
+
+> ⚠️ **Warning:**
+When `{{EXTERNALLY_DEFINED}}` is removed from an existing branch protection rule or ruleset configuration, the status checks in the existing rules in GitHub will revert to the checks that are defined in safe-settings. From this point onwards, all status checks configured through the GitHub UI will be reverted back to the safe-settings configuration.
+
+#### Status checks inheritance across scopes
+Refer to [Status checks](docs/status-checks.md).
 
 ### Performance
 When there are 1000s of repos to be managed -- and there is a global settings change -- safe-settings will have to work efficiently and only make the necessary API calls.
@@ -286,10 +471,28 @@ The following can be configured:
 - `Rulesets`
 - `Environments` - wait timer, required reviewers, prevent self review, protected branches deployment branch policy, custom deployment branch policy, variables, deployment protection rules
 
-It is possible to provide an `include` or `exclude` settings to restrict the `collaborators`, `teams`, `labels` to a list of repos or exclude a set of repos for a collaborator.
-
 See [`docs/sample-settings/settings.yml`](docs/sample-settings/settings.yml) for a sample settings file.
 
+> [!note]
+> When using `collaborators`, `teams` or `labels`, you can control which repositories they apply to using `include` and `exclude`:
+>
+> - If `include` is specified, settings will **only** apply to repositories that match those patterns
+> - If `exclude` is specified, settings will apply to all repositories **except** those matching the patterns  
+> - If both are specified, `exclude` takes precedence over `include` but `include` patterns will still be respected
+>
+> Pattern matching uses glob expressions, e.g use * for wildcards. For example:
+>
+> ```yml
+> teams:
+>   - name: Myteam-admins
+>     permission: admin
+>   - name: Myteam-developers
+>     permission: push
+>   - name: Other-team
+>     permission: push
+>     include:
+>       - '*-config'
+>  ```
 
 ### Additional values
 
@@ -364,11 +567,13 @@ You can pass environment variables; the easiest way to do it is via a `.env` fil
 
 ## How to use
 
-1. __[Deploy and install the app](docs/deploy.md)__.
+1. Create an `admin` repo (or an alternative of your choosing) within your organization. Remember to set `ADMIN_REPO` if you choose something other than `admin`. See [Environment variables](#environment-variables) for more details.
 
-2. Create an `admin` repo (or an alternative of your choosing) within your organization. Remember to set `CONFIG_REPO` if you choose something other than `admin`. See [Environment variables](#environment-variables) for more details.
+2. Add the settings for the `org`, `suborgs`, and `repos`. Sample files can be found [here](docs/sample-settings).
 
-3. Add the settings for the `org`, `suborgs`, and `repos`. Sample files can be found [here](docs/sample-settings).
+3. __[Deploy and install the app](docs/deploy.md)__.  Alternatively, the __[GitHub Actions Guide](docs/github-action.md)__ describes how to run `safe-settings` with GitHub Actions.
+
+
 
 
 ## License
