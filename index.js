@@ -521,12 +521,7 @@ module.exports = (robot, { getRouter }, Settings = require('./lib/settings')) =>
 
   robot.on(['check_suite.rerequested'], async context => {
     robot.log.debug('Check suite was rerequested!')
-    return createCheckRun(context)
-  })
-
-  robot.on(['check_suite.rerequested'], async context => {
-    robot.log.debug('Check suite was rerequested!')
-    return createCheckRun(context)
+    return createCheckRun(context, undefined, context.payload.check_suite.head_sha)
   })
 
   robot.on(['check_run.created'], async context => {
@@ -572,8 +567,8 @@ module.exports = (robot, { getRouter }, Settings = require('./lib/settings')) =>
 
     params = Object.assign(context.repo(), { pull_number: pull_request.number })
 
-    const changes = await context.octokit.pulls.listFiles(params)
-    const files = changes.data.map(f => { return f.filename })
+    const changes = await context.octokit.paginate(context.octokit.pulls.listFiles, params)
+    const files = changes.map(f => { return f.filename })
 
     const settingsModified = files.includes(Settings.FILE_PATH)
 
