@@ -16,10 +16,10 @@ function fakeRobot () {
     log: { debug: jest.fn(), error: jest.fn(), info: jest.fn(), warn: jest.fn() },
     onError: jest.fn(),
     // info() runs unawaited at load time and calls robot.auth().
-    auth: () => Promise.resolve({
+    auth: () => Promise.resolve(withRestNamespace({
       paginate: () => Promise.resolve([]),
       apps: { listInstallations: { endpoint: { merge: () => ({}) } } }
-    }),
+    })),
     on (events, fn) {
       for (const event of [].concat(events)) {
         if (!handlers.has(event)) handlers.set(event, [])
@@ -42,8 +42,16 @@ function fakeSettings () {
   }
 }
 
+// Octokit exposes the REST methods under `rest`, which is what the app calls.
+// Pointing `rest` back at the mock itself keeps one set of jest.fn() instances,
+// so assertions can read either name and see the same calls.
+function withRestNamespace (octokit) {
+  octokit.rest = octokit
+  return octokit
+}
+
 function fakeOctokit (filenames) {
-  return {
+  return withRestNamespace({
     paginate: jest.fn(() => Promise.resolve(filenames.map((filename) => ({ filename })))),
     pulls: { listFiles: { endpointMarker: 'listFiles' } },
     checks: {
@@ -53,7 +61,7 @@ function fakeOctokit (filenames) {
     repos: {
       getContent: jest.fn(() => Promise.resolve({ data: { content: '' } }))
     }
-  }
+  })
 }
 
 function checkRunContext (octokit, files) {
@@ -93,8 +101,8 @@ describe('check_suite.rerequested', () => {
       }
     })
 
-    expect(octokit.checks.create).toHaveBeenCalledTimes(1)
-    const params = octokit.checks.create.mock.calls[0][0]
+    expect(octokit.rest.checks.create).toHaveBeenCalledTimes(1)
+    const params = octokit.rest.checks.create.mock.calls[0][0]
     expect(params.name).toBe(CHECK_NAME)
     expect(params.head_sha).toBe('abc123')
   })
@@ -113,7 +121,7 @@ describe('check_run.created', () => {
     await robot.emit('check_run.created', checkRunContext(octokit, files))
 
     expect(octokit.paginate).toHaveBeenCalledWith(
-      octokit.pulls.listFiles,
+      octokit.rest.pulls.listFiles,
       expect.objectContaining({ pull_number: 7 })
     )
     expect(settings.syncSelectedRepos).toHaveBeenCalledTimes(1)
@@ -132,7 +140,7 @@ describe('check_run.created', () => {
     await robot.emit('check_run.created', checkRunContext(octokit, files))
 
     expect(settings.syncSelectedRepos).not.toHaveBeenCalled()
-    const completion = octokit.checks.update.mock.calls.at(-1)[0]
+    const completion = octokit.rest.checks.update.mock.calls.at(-1)[0]
     expect(completion.status).toBe('completed')
     expect(completion.conclusion).toBe('success')
   })
